@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+confluence_setup_log() {
+  printf '\e[1mSetup\e[0m \e[32m%s\e[0m\n' "$*"
+}
+
+confluence_setup_fail() {
+  confluence_setup_log "$@"; return 1
+}
+
+main() {
+  true
+}
+
+create_confluence_home() {
+  [[ -d "$CONFLUENCE_HOME" ]] || install -D -d -m 0750 -o "$APPLICATION_USER" -g "$APPLICATION_USER" "$CONFLUENCE_HOME"
+  chown -R "$APPLICATION_USER" "$CONFLUENCE_HOME"
+}
+
+create_confluence_config() { true; }
+
+fix_permissions() {
+  chown "$APPLICATION_USER" "$CATALINA_HOME/work" "$CATALINA_HOME/logs" "/app/.oracle_jre_usage"
+  chmod 1777 /tmp
+}
+
+setup_step() {
+  [[ -f "$CONFLUENCE_HOME/dbconfig.xml" ]] || echo "SetupMode"
+}
+
+confluence_stuck_detection_threshold() {
+  confluence_setup_log "Stuck Detection" set threshold to "$CONFLUENCE_STUCK_DETECTION_THRESHOLD" seconds
+  xml ed -L \
+    -d '/Server/Service/Engine/Host/Context/Valve/@threshold' \
+    -i '/Server/Service/Engine/Host/Context/Valve[@className="org.apache.catalina.valves.StuckThreadDetectionValve"]' \
+      -t attr -n threshold -v "$CONFLUENCE_STUCK_DETECTION_THRESHOLD" \
+  "$CATALINA_HOME/conf/server.xml"
+}
+
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+  true
+else
+  fix_permissions
+  create_confluence_home
+  create_confluence_config
+  confluence_stuck_detection_threshold
+
+  set -- JAVA_OPTS="$JAVA_OPTS -Dconfluence.home=$CONFLUENCE_HOME" "$@"
+fi
