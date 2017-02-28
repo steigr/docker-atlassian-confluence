@@ -22,10 +22,8 @@ RUN  addgroup -S $APPLICATION_USER \
  &&  curl -Lo /app/lib/hsqldb-$hsqldb_version.jar http://central.maven.org/maven2/org/hsqldb/hsqldb/$hsqldb_version/hsqldb-$hsqldb_version.jar \
  &&  postgresql_version=$(curl -sL https://repo1.maven.org/maven2/org/postgresql/postgresql/maven-metadata.xml | xml sel --net --template --value-of '/metadata/versioning/latest' | sed -e 's@\.jre.*@@') \
  &&  curl -Lo /app/lib/postgresql-$postgresql_version.jar https://jdbc.postgresql.org/download/postgresql-$postgresql_version.jar \
- &&  su-exec $APPLICATION_USER tar -x -f tomcat-$TOMCAT_VERSION.tar.* -C /app --strip-components=1 --wildcards "apache-tomcat-${TOMCAT_VERSION}/bin/*" "apache-tomcat-${TOMCAT_VERSION}/lib/*" \
  &&  apk del .build-deps \
- &&  rm -rf /var/cache/apk/* \
-            tomcat-$TOMCAT_VERSION.tar.*
+ &&  rm -rf /var/cache/apk/*
 
 RUN  export MIDANAUTHENTICATOR_VERSION=1.1.0 \
  &&  apk add --no-cache --virtual .build-deps curl \
@@ -33,8 +31,6 @@ RUN  export MIDANAUTHENTICATOR_VERSION=1.1.0 \
      | install -D -o $APPLICATION_USER -g $APPLICATION_USER -m 0644 /dev/stdin /app/atlassian-confluence/WEB-INF/lib/midan-authenticator-${MIDANAUTHENTICATOR_VERSION:0:3}.jar \
  &&  apk del .build-deps \
  &&  rm -rf /var/cache/apk/*
-
-HEALTHCHECK CMD nc -z 127.0.0.1 8090
 
 VOLUME /app/.oracle_jre_usage /app/work /app/logs /tmp
 ENTRYPOINT ["confluence"]
