@@ -1,2 +1,4 @@
-*.env
-.git
+*
+!Dockerfile
+!docker-entrypoint.sh
+!scripts
