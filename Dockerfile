@@ -1,8 +1,7 @@
-FROM steigr/java:8_server-jre_unlimited
+FROM steigr/tomcat:latest
 
 ENV  APPLICATION_USER=confluence \
-		 CONFLUENCE_VERSION=6.0.6 \
-		 TOMCAT_VERSION=8.5.11
+		 CONFLUENCE_VERSION=6.0.6
 
 RUN  addgroup -S $APPLICATION_USER \
  &&  adduser -h /app -G $APPLICATION_USER -g '' -S -D -H $APPLICATION_USER \
@@ -10,6 +9,7 @@ RUN  addgroup -S $APPLICATION_USER \
  &&  install -D -d -o $APPLICATION_USER -g $APPLICATION_USER /app \
  &&  curl -L https://www.atlassian.com/software/confluence/downloads/binary/atlassian-confluence-${CONFLUENCE_VERSION}.tar.gz \
      | su-exec $APPLICATION_USER tar -x -z -C /app --strip-components=1 \
+ &&  tomcat-install /app $APPLICATION_USER \
  &&  rm -rf /app/lib/hsqldb-*.jar \
             /app/lib/postgresql-*.jar \
             /app/README* \
@@ -18,12 +18,14 @@ RUN  addgroup -S $APPLICATION_USER \
             /app/tomcat-docs \
  &&  xml c14n --without-comments /app/conf/server.xml | xml fo -s 2 > /app/conf/server.xml.tmp \
  &&  mv /app/conf/server.xml.tmp /app/conf/server.xml \
- &&  curl -Lo /app/lib/hsqldb-2.3.4.jar http://central.maven.org/maven2/org/hsqldb/hsqldb/2.3.4/hsqldb-2.3.4.jar \
- &&  curl -Lo /app/lib/postgresql-42.0.0.jar https://jdbc.postgresql.org/download/postgresql-42.0.0.jar \
- &&  curl -sL http://archive.apache.org/dist/tomcat/tomcat-${TOMCAT_VERSION:0:1}/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz \
-     | su-exec $APPLICATION_USER tar -x -z -v -C /app --strip-components=1 --wildcards "apache-tomcat-${TOMCAT_VERSION}/bin/*" "apache-tomcat-${TOMCAT_VERSION}/lib/*" \
+ &&  hsqldb_version=$(curl -sL http://central.maven.org/maven2/org/hsqldb/hsqldb/maven-metadata.xml | xml sel --net --template --value-of '/metadata/versioning/latest' ) \
+ &&  curl -Lo /app/lib/hsqldb-$hsqldb_version.jar http://central.maven.org/maven2/org/hsqldb/hsqldb/$hsqldb_version/hsqldb-$hsqldb_version.jar \
+ &&  postgresql_version=$(curl -sL https://repo1.maven.org/maven2/org/postgresql/postgresql/maven-metadata.xml | xml sel --net --template --value-of '/metadata/versioning/latest' | sed -e 's@\.jre.*@@') \
+ &&  curl -Lo /app/lib/postgresql-$postgresql_version.jar https://jdbc.postgresql.org/download/postgresql-$postgresql_version.jar \
+ &&  su-exec $APPLICATION_USER tar -x -f tomcat-$TOMCAT_VERSION.tar.* -C /app --strip-components=1 --wildcards "apache-tomcat-${TOMCAT_VERSION}/bin/*" "apache-tomcat-${TOMCAT_VERSION}/lib/*" \
  &&  apk del .build-deps \
- &&  rm -rf /var/cache/apk/*
+ &&  rm -rf /var/cache/apk/* \
+            tomcat-$TOMCAT_VERSION.tar.*
 
 RUN  export MIDANAUTHENTICATOR_VERSION=1.1.0 \
  &&  apk add --no-cache --virtual .build-deps curl \
